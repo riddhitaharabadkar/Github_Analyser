@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Profile Analyzer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+            background-color: #f4f4f4;
+        }
+        #profile-container, #ai-response {
+            margin: 20px auto;
+            padding: 15px;
+            width: 80%;
+            max-width: 500px;
+            background: white;
+            box-shadow: 0px 0px 10px #ccc;
+            border-radius: 10px;
+        }
+        img {
+            border-radius: 50%;
+            margin: 10px;
+            width: 120px;
+        }
+        input, button {
+            margin: 10px;
+            padding: 8px;
+            font-size: 16px;
+        }
+        button {
+            cursor: pointer;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+        #ai-response {
+            display: none;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>GitHub Profile Analyzer</h1>
+    <input type="text" id="username" placeholder="Enter GitHub username">
+    <button onclick="fetchProfile()">Fetch Profile</button>
+
+    <div id="profile-container" style="display:none;">
+        <img id="avatar" src="" alt="Avatar">
+        <h2 id="name"></h2>
+        <p><strong>Username:</strong> <span id="login"></span></p>
+        <p><strong>Bio:</strong> <span id="bio"></span></p>
+        <p><strong>Location:</strong> <span id="location"></span></p>
+        <p><strong>Followers:</strong> <span id="followers"></span></p>
+        <p><strong>Following:</strong> <span id="following"></span></p>
+        <p><strong>Public Repos:</strong> <span id="public_repos"></span></p>
+        <a id="profile_link" href="#" target="_blank">View Profile</a>
+    </div>
+
+    <div id="ai-section" style="display:none;">
+        <input type="text" id="ai-query" placeholder="Ask AI about this profile">
+        <button onclick="askAI()">Ask AI</button>
+    </div>
+
+    <div id="ai-response"></div>
+
+    <script>
+        let profileData = null;
+        const GROQ_API_KEY = "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"; // Replace with your API key
+
+        async function fetchProfile() {
+            const username = document.getElementById("username").value;
+            if (!username) {
+                alert("Please enter a GitHub username.");
+                return;
+            }
+
+            try {
+                const response = await fetch(`https://api.github.com/users/${username}`);
+                if (!response.ok) throw new Error("User not found.");
+                profileData = await response.json();
+
+                document.getElementById("avatar").src = profileData.avatar_url;
+                document.getElementById("name").innerText = profileData.name || "N/A";
+                document.getElementById("login").innerText = profileData.login;
+                document.getElementById("bio").innerText = profileData.bio || "N/A";
+                document.getElementById("location").innerText = profileData.location || "N/A";
+                document.getElementById("followers").innerText = profileData.followers;
+                document.getElementById("following").innerText = profileData.following;
+                document.getElementById("public_repos").innerText = profileData.public_repos;
+                document.getElementById("profile_link").href = profileData.html_url;
+
+                document.getElementById("profile-container").style.display = "block";
+                document.getElementById("ai-section").style.display = "block";
+            } catch (error) {
+                alert("Error fetching GitHub profile: " + error.message);
+            }
+        }
+
+        async function askAI() {
+            if (!profileData) {
+                alert("Please fetch a GitHub profile first.");
+                return;
+            }
+
+            const query = document.getElementById("ai-query").value;
+            if (!query) {
+                alert("Please enter a question.");
+                return;
+            }
+
+            const profileSummary = `
+                Name: ${profileData.name || "N/A"}
+                Username: ${profileData.login}
+                Bio: ${profileData.bio || "N/A"}
+                Location: ${profileData.location || "N/A"}
+                Followers: ${profileData.followers}
+                Following: ${profileData.following}
+                Public Repos: ${profileData.public_repos}
+                Profile URL: ${profileData.html_url}
+            `;
+
+            document.getElementById("ai-response").style.display = "block";
+            document.getElementById("ai-response").innerHTML = `<p><strong>AI is thinking...</strong></p>`;
+
+            try {
+                const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${GROQ_API_KEY}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        model: "llama3-8b-8192",
+                        messages: [
+                            { role: "system", content: "You are an AI assistant that analyzes GitHub profiles and answers user questions." },
+                            { role: "user", content: `Here is a GitHub user's profile:\n${profileSummary}\n\nQuestion: ${query}` }
+                        ],
+                        max_tokens: 400
+                    })
+                });
+
+                const aiResult = await groqResponse.json();
+                const aiMessage = aiResult.choices?.[0]?.message?.content || "AI could not process the request.";
+
+                document.getElementById("ai-response").innerHTML = `<div style="border: 1px solid #ccc; padding: 10px; background-color: #eef;">
+                    <strong>AI Response:</strong> ${aiMessage}
+                </div>`;
+            } catch (error) {
+                document.getElementById("ai-response").innerHTML = "<p><strong>Error fetching AI response.</strong></p>";
+            }
+        }
+    </script>
+
+</body>
+</html>
